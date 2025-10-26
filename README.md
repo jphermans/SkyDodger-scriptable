@@ -1,2 +1,2 @@
-# SkyDodger---scriptable
+# SkyDodger scriptable
 iOS scriptable game.
