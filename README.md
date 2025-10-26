@@ -36,7 +36,7 @@ SkyDodger/
 ├── 🚀 Sky Dodger.js        # Main game script (WebView-based game)
 ├── 💾 SkyDodger Closer.js  # Helper script to save score + close Scriptable
 ├── 📱 SkyDodgerWidget.js   # Widget script for home screen best score display
-├── 🧪 TestKeychain.js       # Script to verify Keychain storage functionality
+├── 🧪 TestKeychain.js      # Script to verify Keychain storage functionality
 └── 📖 README.md            # This file
 ```
 ---
