@@ -9,18 +9,19 @@ The game keeps track of your **best score**, which is saved to iCloud and displa
 
 ## ✨ Features
 
-- **Touch controls** – drag your finger to move the ship around the screen.  
-- **Starfield background** – dynamic stars create a space atmosphere.  
-- **Falling asteroids** – rocks get faster and spawn more often as your score increases.  
-- **Lives system** – you get 3 hits before Game Over.  
-- **High score tracking** – your best score is saved in iCloud.  
-- **Home screen widget** – shows your best score with a starry space background and spaceship.  
-- **Quit button** – exit the game cleanly and save your score.
+- 🎮 **Touch controls** – drag your finger to move the ship around the screen.  
+- ⭐ **Starfield background** – dynamic stars create a space atmosphere.  
+- 🪨 **Falling asteroids** – rocks get faster and spawn more often as your score increases.  
+- ❤️ **Lives system** – you get 3 hits before Game Over.  
+- 🏆 **High score tracking** – your best score is saved in iCloud.  
+- 📱 **Home screen widget** – shows your best score with a starry space background and spaceship.  
+- ❌ **Quit button** – exit the game cleanly and save your score.
 
 ---
 
 ## 📂 Repository Structure
-```
+
+```text
 SkyDodger/
 ├── 🚀 Sky Dodger.js        # Main game script (WebView-based game)
 ├── 💾 SkyDodger Closer.js  # Helper script to save score + close Scriptable
@@ -38,12 +39,22 @@ SkyDodger/
    - `SkyDodgerWidget`  
 3. Add the **SkyDodgerWidget** as a Scriptable widget to your home screen.  
 4. Tap **Play** to start the game.  
-   - Drag your finger to move the spaceship.  
-   - Dodge the falling rocks.  
-   - Survive as long as you can!  
+   - 🚀 Drag your finger to move the spaceship.  
+   - 🪨 Dodge the falling rocks.  
+   - ⭐ Survive as long as you can!  
 5. Tap **Quit** to exit and save your score.
 
 ---
+## 🎮 Controls
+👆 Finger → Move the spaceship
+⬆️⬇️⬅️➡️ Your finger = Ship movement
+💥 Don’t touch the falling rocks!
+
+👉 Simple rule: Where your finger goes, the ship follows.
+
+---
+
+
 
 ## 🏆 Score Saving & Widget
 
