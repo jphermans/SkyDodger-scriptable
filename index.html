@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SkyDodger — Web Edition</title>
+<style>
+  :root { --bg:#0A0F1A; --fg:#E8F1FF; --accent:#4FC3F7; --danger:#FF6B6B; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; }
+  #wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; gap:16px; }
+  canvas { width:min(95vw, 900px); height:min(70vh, 600px); border-radius:16px; background: radial-gradient(ellipse at center, #0e1624 0%, #070b12 70%, #05080D 100%);
+           box-shadow: 0 10px 30px rgba(0,0,0,.45), inset 0 0 60px rgba(79,195,247,.06); }
+  .hud { display:flex; gap:16px; align-items:center; flex-wrap:wrap; width:min(95vw, 900px); }
+  .pill { padding:8px 12px; border:1px solid rgba(255,255,255,.15); border-radius:999px; background: rgba(255,255,255,.04); backdrop-filter: blur(6px); }
+  .btn { cursor:pointer; user-select:none; transition: transform .08s ease; }
+  .btn:active { transform: translateY(1px) scale(.99); }
+  a { color: var(--accent); text-decoration: none; }
+  footer { opacity:.7; font-size:.9rem; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="hud">
+    <div class="pill">Score: <span id="score">0</span></div>
+    <div class="pill">Best (global): <span id="best">—</span></div>
+    <div class="pill btn" id="playPause">▶️ Play</div>
+    <div class="pill">Move: ⬅️ ➡️ or drag • Pause: Space • Retry: R</div>
+  </div>
+  <canvas id="game" width="900" height="600" aria-label="SkyDodger playfield"></canvas>
+  <footer>Created by <strong>JPHsystems</strong> — 2025 • <a href="#" id="how">How global best works?</a></footer>
+</div>
+
+<script>
+/* =========================
+   CONFIG: Global Score Backend (Supabase)
+   =========================
+   1) Create a Supabase project (free).
+   2) SQL (run in SQL editor):
+
+      create table if not exists scores (
+        id uuid primary key default gen_random_uuid(),
+        name text,
+        best integer not null,
+        created_at timestamp with time zone default now()
+      );
+
+      alter table scores enable row level security;
+
+      -- Public can insert/select (you can tighten later with RLS policies)
+      create policy "Allow anon insert"
+        on scores for insert
+        to anon
+        with check (true);
+
+      create policy "Allow anon select"
+        on scores for select
+        to anon
+        using (true);
+
+   3) In Project Settings → API, copy your Project URL and anon public key below.
+   4) Commit this file to your GitHub Pages repo (as index.html).
+
+   NOTE: If you leave these empty, the game will fall back to localStorage per-browser.
+*/
+
+const SUPABASE_URL  = "";      // e.g. "https://abc123.supabase.co"
+const SUPABASE_ANON = "";      // e.g. "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+async function getGlobalBest() {
+  if (!SUPABASE_URL || !SUPABASE_ANON) {
+    // Fallback to local storage
+    return Number(localStorage.getItem("skydodger_best") || 0);
+  }
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/scores?select=best&order=best.desc&limit=1`, {
+      headers: {
+        apikey: SUPABASE_ANON,
+        Authorization: `Bearer ${SUPABASE_ANON}`,
+        Accept: "application/json"
+      }
+    });
+    if (!resp.ok) throw new Error("Select failed");
+    const data = await resp.json();
+    return data?.[0]?.best ?? 0;
+  } catch (e) {
+    console.warn("Global best fetch failed, falling back to localStorage:", e);
+    return Number(localStorage.getItem("skydodger_best") || 0);
+  }
+}
+
+async function submitScore(score, playerName = "anon") {
+  if (!SUPABASE_URL || !SUPABASE_ANON) {
+    // Fallback: keep local per-browser best
+    const best = Number(localStorage.getItem("skydodger_best") || 0);
+    if (score > best) localStorage.setItem("skydodger_best", String(score));
+    return;
+  }
+  try {
+    // Insert the score; global best is queried as max(best)
+    await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON,
+        Authorization: `Bearer ${SUPABASE_ANON}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify({ name: playerName, best: score })
+    });
+  } catch (e) {
+    console.warn("Submit score failed:", e);
+  }
+}
+
+/* =========================
+   Game
+   ========================= */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+const bestEl = document.getElementById("best");
+const playPauseBtn = document.getElementById("playPause");
+const howLink = document.getElementById("how");
+
+let W = canvas.width, H = canvas.height;
+let running = false;
+let gameOver = false;
+let score = 0;
+let globalBest = 0;
+
+// Resize: keep internal resolution high for crispness
+function fitCanvas() {
+  const cssW = canvas.clientWidth;
+  const cssH = canvas.clientHeight;
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = Math.round(cssW * scale);
+  canvas.height = Math.round(cssH * scale);
+  W = canvas.width; H = canvas.height;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0); // draw in CSS pixels
+}
+window.addEventListener('resize', fitCanvas); fitCanvas();
+
+// Input
+const keys = new Set();
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { toggleRun(); }
+  if (e.code === 'KeyR') { resetGame(true); }
+  keys.add(e.code);
+});
+window.addEventListener('keyup', (e) => keys.delete(e.code));
+
+// Touch/drag to move
+let dragging = false;
+canvas.addEventListener('pointerdown', (e) => { dragging = true; moveShipTo(e); });
+canvas.addEventListener('pointermove', (e) => { if (dragging) moveShipTo(e); });
+window.addEventListener('pointerup',   ()  => dragging = false);
+
+function moveShipTo(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left);
+  ship.x = clamp(x, 20, (canvas.clientWidth - 20));
+}
+
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+// Ship
+const ship = { x: 200, y: 0, r: 14, vx: 0, color: '#A9F5FF', hitTint: 0 };
+function shipScreenY() { return canvas.clientHeight - 60; }
+
+// Rocks
+let rocks = [];
+function spawnRock() {
+  const size = 10 + Math.random()*20;
+  const x = 20 + Math.random()*(canvas.clientWidth - 40);
+  const speed = 2 + Math.random()*3 + (score/250); // speeds up over time
+  rocks.push({ x, y: -size, r: size, v: speed });
+}
+
+// Stars + meteors
+const stars = Array.from({length: 120}, () => ({
+  x: Math.random()*canvas.clientWidth,
+  y: Math.random()*canvas.clientHeight,
+  z: Math.random()*1.5 + 0.5
+}));
+
+let meteor = null;
+function maybeSpawnMeteor() {
+  if (meteor || Math.random() > 0.006) return;
+  // From any side
+  const side = Math.floor(Math.random()*4); // 0=top 1=right 2=bottom 3=left
+  const speed = 3 + Math.random()*4;
+  const length = 80 + Math.random()*120;
+  const angleMap = [ Math.PI*0.25, Math.PI*0.75, -Math.PI*0.75, -Math.PI*0.25 ];
+  const angle = angleMap[side] + (Math.random()*0.4 - 0.2);
+  const margin = 40;
+  let x = Math.random()*canvas.clientWidth, y = Math.random()*canvas.clientHeight;
+  if (side===0) y = -margin; if (side===2) y = canvas.clientHeight+margin;
+  if (side===1) x = canvas.clientWidth+margin; if (side===3) x = -margin;
+  meteor = { x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, len:length, life: 240 };
+}
+
+// Explosion particles
+let particles = [];
+function explode(x,y, color='#FFD166') {
+  for (let i=0;i<40;i++){
+    const a = Math.random()*Math.PI*2;
+    const s = Math.random()*3+1;
+    particles.push({
+      x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 60+Math.random()*30
+    });
+  }
+}
+
+// Game loop
+let frame = 0;
+function loop(){
+  if (running) update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function update(){
+  frame++;
+  // Ship control
+  const speed = 5;
+  if (keys.has('ArrowLeft'))  ship.x -= speed;
+  if (keys.has('ArrowRight')) ship.x += speed;
+  ship.x = clamp(ship.x, 20, canvas.clientWidth-20);
+  ship.y = shipScreenY();
+
+  // Spawn rocks
+  if (frame % 30 === 0) spawnRock();
+
+  // Update rocks
+  for (const r of rocks) { r.y += r.v; }
+  rocks = rocks.filter(r => r.y < canvas.clientHeight + r.r);
+
+  // Stars parallax
+  for (const s of stars) {
+    s.y += s.z*0.7;
+    if (s.y > canvas.clientHeight) { s.y = -2; s.x = Math.random()*canvas.clientWidth; }
+  }
+
+  // Meteor
+  maybeSpawnMeteor();
+  if (meteor) {
+    meteor.x += meteor.vx; meteor.y += meteor.vy; meteor.life--;
+    if (meteor.life <= 0 || meteor.x < -200 || meteor.x > canvas.clientWidth+200 || meteor.y < -200 || meteor.y > canvas.clientHeight+200) {
+      meteor = null;
+    }
+  }
+
+  // Particles
+  for (const p of particles) { p.x+=p.vx; p.y+=p.vy; p.life--; }
+  particles = particles.filter(p => p.life>0);
+
+  // Collisions
+  for (const r of rocks) {
+    const dx = (r.x - ship.x);
+    const dy = (r.y - ship.y);
+    const dist2 = dx*dx + dy*dy;
+    const rad = (r.r + ship.r);
+    if (dist2 < rad*rad) {
+      // Hit!
+      running = false;
+      gameOver = true;
+      ship.hitTint = 1;
+      explode(ship.x, ship.y, '#FF8E53');
+      submitScore(score);
+      // After a short pause, allow continue
+      setTimeout(() => { playPauseBtn.textContent = '▶️ Retry'; }, 800);
+      break;
+    }
+  }
+
+  // Score
+  score += 1;
+  scoreEl.textContent = score;
+}
+
+function draw(){
+  // Clear
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Stars
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  for (const s of stars){
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 0.7*s.z, 0, Math.PI*2);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Meteor
+  if (meteor){
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    const grad = ctx.createLinearGradient(meteor.x, meteor.y, meteor.x - meteor.vx*meteor.len, meteor.y - meteor.vy*meteor.len);
+    grad.addColorStop(0, '#FFFFFF');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(meteor.x, meteor.y);
+    ctx.lineTo(meteor.x - meteor.vx*meteor.len, meteor.y - meteor.vy*meteor.len);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Rocks
+  for (const r of rocks){
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI*2);
+    ctx.fillStyle = '#566F8A';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.15)';
+    ctx.stroke();
+  }
+
+  // Ship
+  const shipY = shipScreenY();
+  const baseColor = ship.hitTint > 0 ? '#FFB703' : ship.color;
+  if (ship.hitTint > 0) ship.hitTint = Math.max(0, ship.hitTint - 0.05);
+
+  ctx.save();
+  ctx.translate(ship.x, shipY);
+  // glow
+  ctx.shadowColor = baseColor;
+  ctx.shadowBlur = 12;
+  // body
+  ctx.fillStyle = baseColor;
+  ctx.beginPath();
+  ctx.moveTo(0,-18); ctx.lineTo(12,6); ctx.lineTo(0,14); ctx.lineTo(-12,6); ctx.closePath();
+  ctx.fill();
+  // flame
+  const t = performance.now()/180;
+  const flame = Math.sin(t)*4 + 10;
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#FF6B6B';
+  ctx.beginPath();
+  ctx.moveTo(-4,12); ctx.lineTo(4,12); ctx.lineTo(0, 12+flame); ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Particles
+  for (const p of particles){
+    ctx.globalAlpha = Math.max(0, p.life/60);
+    ctx.fillStyle = '#FFD166';
+    ctx.fillRect(p.x, p.y, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+
+  // Overlay text when paused / menu
+  if (!running){
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#E8F1FF';
+    ctx.textAlign = 'center';
+    ctx.font = '700 28px system-ui, sans-serif';
+    ctx.fillText(gameOver ? 'You crashed!' : 'SkyDodger', canvas.width/2, canvas.height/2 - 30);
+
+    ctx.font = '16px system-ui, sans-serif';
+    ctx.fillText('Press ▶️ Play or Space to start • Move with ← → or drag • R to retry', canvas.width/2, canvas.height/2 + 6);
+
+    ctx.font = '14px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(232,241,255,.75)';
+    ctx.fillText(`Current score: ${score}   •   Global best: ${bestEl.textContent}`, canvas.width/2, canvas.height/2 + 34);
+    ctx.restore();
+  }
+}
+
+// Controls
+function toggleRun(){
+  if (running) {
+    running = false;
+    playPauseBtn.textContent = '▶️ Resume';
+  } else {
+    if (gameOver) resetGame(false);
+    running = true;
+    playPauseBtn.textContent = '⏸️ Pause';
+  }
+}
+playPauseBtn.addEventListener('click', toggleRun);
+
+function resetGame(hard){
+  // preserve stars for nice feel
+  rocks = [];
+  particles = [];
+  meteor = null;
+  score = 0;
+  gameOver = false;
+  playPauseBtn.textContent = '⏸️ Pause';
+  if (hard) running = true;
+}
+
+// Info link
+howLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  alert(`Global Best uses Supabase via its REST API.
+- If SUPABASE_URL and SUPABASE_ANON are set in the file, scores are written to a 'scores' table and the highest is shown to all players.
+- If not set, it falls back to localStorage (per-browser only).
+
+You can harden RLS policies later (e.g., rate-limits, CAPTCHAs, signatures).`);
+});
+
+// Boot
+(async function init(){
+  globalBest = await getGlobalBest();
+  bestEl.textContent = globalBest || 0;
+  loop();
+
+  // Periodically refresh displayed global best while playing
+  setInterval(async () => {
+    const latest = await getGlobalBest();
+    if (Number(latest) > Number(bestEl.textContent)) bestEl.textContent = latest;
+  }, 15000);
+
+  // When we beat global best, update UI instantly
+  const observer = new MutationObserver(() => {
+    if (score > Number(bestEl.textContent)) bestEl.textContent = score;
+  });
+  observer.observe(scoreEl, { childList: true });
+})();
+</script>
+</body>
+</html>

@@ -1,18 +1,17 @@
 // Widget for Sky Dodger — starry background + ship + best score (dynamic starfield)
 
-const fm = FileManager.iCloud();
-const BEST_PATH = fm.joinPath(fm.documentsDirectory(), "sky_best.txt");
+// --- Best score via Keychain ---
+const KEYCHAIN_KEY = "sky_best";
 
-let bestText = "No score yet";
-if (fm.fileExists(BEST_PATH)) {
-  try {
-    fm.downloadFileFromiCloud(BEST_PATH);
-    const val = parseInt(fm.readString(BEST_PATH));
-    if (!isNaN(val) && val > 0) bestText = "Best: " + val;
-  } catch(e) {
-    console.log("Read error: " + e);
-  }
+function loadBestScore() {
+  if (!Keychain.contains(KEYCHAIN_KEY)) return 0;
+  const val = Keychain.get(KEYCHAIN_KEY);
+  const n = parseInt(val);
+  return isNaN(n) ? 0 : n;
 }
+
+let best = loadBestScore();
+let bestText = best > 0 ? "Best: " + best : "No score yet";
 
 // --- draw dynamic starfield + ship ---
 function drawStarry(width, height, stars = 80) {
@@ -83,6 +82,9 @@ scoreTxt.centerAlignText();
 
 // tap opens the game script
 w.url = "scriptable:///run/SkyDodger";
+
+// request faster refresh (about every minute)
+w.refreshAfterDate = new Date(Date.now() + 60 * 1000);
 
 Script.setWidget(w);
 Script.complete();

@@ -1,21 +1,29 @@
 // SkyDodger Closer — saves ?best=… then closes Scriptable
 
-const fm = FileManager.iCloud();
-const BEST_PATH = fm.joinPath(fm.documentsDirectory(), "sky_best.txt");
+// --- Best score via Keychain ---
+const KEYCHAIN_KEY = "sky_best";
+
+function loadBestScore() {
+  if (!Keychain.contains(KEYCHAIN_KEY)) return 0;
+  const val = Keychain.get(KEYCHAIN_KEY);
+  const n = parseInt(val);
+  return isNaN(n) ? 0 : n;
+}
+
+function saveBestScore(n) {
+  Keychain.set(KEYCHAIN_KEY, String(n));
+}
 
 const qp = args.queryParameters || {};
 const incoming = parseInt(qp.best || "0");
 let current = 0;
 
-if (fm.fileExists(BEST_PATH)) {
-  fm.downloadFileFromiCloud(BEST_PATH);
-  current = parseInt(fm.readString(BEST_PATH)) || 0;
-}
+current = loadBestScore();
 
 // If incoming is valid, take the max to keep "all-time best"
 if (!isNaN(incoming)) {
   const toSave = Math.max(incoming, current);
-  fm.writeString(BEST_PATH, String(toSave));
+  saveBestScore(toSave);
   console.log("Best saved:", toSave);
 }
 

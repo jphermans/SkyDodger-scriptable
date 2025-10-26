@@ -1,16 +1,20 @@
 // Sky Dodger — stable collisions + restored engine flame
 
-const fm = FileManager.iCloud();
-const BEST_PATH = fm.joinPath(fm.documentsDirectory(), "sky_best.txt");
+// --- Best score via Keychain ---
+const KEYCHAIN_KEY = "sky_best";
 
-let bestFromFile = 0;
-if (fm.fileExists(BEST_PATH)) {
-  try {
-    fm.downloadFileFromiCloud(BEST_PATH);
-    const v = parseInt(fm.readString(BEST_PATH));
-    if (!isNaN(v) && v > 0) bestFromFile = v;
-  } catch (e) { console.log("Read best failed: " + e); }
+function loadBestScore() {
+  if (!Keychain.contains(KEYCHAIN_KEY)) return 0;
+  const val = Keychain.get(KEYCHAIN_KEY);
+  const n = parseInt(val);
+  return isNaN(n) ? 0 : n;
 }
+
+function saveBestScore(n) {
+  Keychain.set(KEYCHAIN_KEY, String(n));
+}
+
+let bestFromFile = loadBestScore();
 
 let w = new WebView();
 await w.loadHTML(htmlCode(bestFromFile));
@@ -18,7 +22,7 @@ await w.present();
 
 try {
   const bestAfter = await w.evaluateJavaScript("window.best || 0", true);
-  if (bestAfter > bestFromFile) fm.writeString(BEST_PATH, String(bestAfter));
+  if (bestAfter > bestFromFile) saveBestScore(bestAfter);
 } catch(e) { console.log("Could not fetch best: " + e); }
 
 function htmlCode(initialBest) {

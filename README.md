@@ -36,6 +36,7 @@ SkyDodger/
 ├── 🚀 Sky Dodger.js        # Main game script (WebView-based game)
 ├── 💾 SkyDodger Closer.js  # Helper script to save score + close Scriptable
 ├── 📱 SkyDodgerWidget.js   # Widget script for home screen best score display
+├── 🧪 TestKeychain.js       # Script to verify Keychain storage functionality
 └── 📖 README.md            # This file
 ```
 ---
@@ -68,8 +69,9 @@ SkyDodger/
 
 ## 🏆 Score Saving & Widget
 
-- Best score is stored in iCloud at: iCloud Drive / Scriptable / sky_best.txt
-- The widget (`SkyDodgerWidget.js`) reads this file and shows:  
+- Best score is securely stored in the iOS Keychain (no longer editable in iCloud).
+- A test script (`TestKeychain.js`) is included to verify Keychain functionality and ensure scores are stored correctly.
+- The widget (`SkyDodgerWidget.js`) reads this value and shows:  
 - Your **all-time best score**  
 - A **starry space background** with the cyan spaceship  
 - Each time the widget refreshes, the starfield is randomly generated.
