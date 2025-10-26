@@ -1,3 +1,13 @@
+## 🎮 Sky Dodger
+
+```text
+  ____  _          ____             _             
+ / ___|| | ___   _|  _ \  ___  __ _| | ___  _ __  
+ \___ \| |/ / | | | | | |/ _ \/ _` | |/ _ \| '_ \ 
+  ___) |   <| |_| | |_| |  __/ (_| | | (_) | | | |
+ |____/|_|\_\\__, |____/ \___|\__,_|_|\___/|_| |_|
+              |___/                                
+
 # 🚀 Sky Dodger – A Mini iOS Game in Scriptable
 
 Sky Dodger is a small **arcade-style dodging game** built entirely in [Scriptable](https://scriptable.app/) for iOS.  
