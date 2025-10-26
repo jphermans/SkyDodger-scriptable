@@ -80,17 +80,17 @@ SkyDodger/
 
 <img src="./images/menu.png" width="200" height="400">
 <img src="./images/game.png" width="200" height="400">
-<img src="./images/widget.png" width="400" height="200">
+
 
 
 
 
 ### Gameplay
-![Gameplay GIF](docs/sky-dodger.gif)
+![Gameplay GIF](./images/sky-dodger.gif)
 
 ### Widget Example
-*(add screenshot of the widget on your home screen)*
 
+<img src="./images/widget.png" width="400" height="200">
 ---
 
 ## ⚙️ Requirements
