@@ -78,6 +78,30 @@ SkyDodger/
 
 ---
 
+## 🌌 Difficulty Levels
+
+You can adjust the game’s **difficulty** using the widget’s parameter or by launching Sky Dodger with a URL parameter.
+
+### Levels
+| Level | Description | Effect |
+|--------|--------------|---------|
+| 1 | Easy | Fewer, slower asteroids |
+| 2 | Normal *(default)* | Balanced speed and spawn rate |
+| 3 | Hard | More and faster asteroids |
+
+### How to Change
+- When adding or editing the Scriptable **SkyDodger widget**, set its **Parameter** field to `1`, `2`, or `3`.  
+  Example:  
+  - `1` → Easy mode  
+  - `2` → Normal mode  
+  - `3` → Hard mode  
+- You can also launch the game manually using a URL like:  
+  ```
+  scriptable:///run/SkyDodger?difficulty=3
+  ```
+
+---
+
 ## 📸 Screenshots & Preview
 
 <img src="./images/menu.png" width="200" height="400">

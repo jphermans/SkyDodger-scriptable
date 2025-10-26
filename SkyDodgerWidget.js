@@ -13,6 +13,14 @@ function loadBestScore() {
 let best = loadBestScore();
 let bestText = best > 0 ? "Best: " + best : "No score yet";
 
+// --- Difficulty parameter ---
+let difficulty = 2; // default
+if (args.widgetParameter) {
+  const d = parseInt(args.widgetParameter);
+  if (!isNaN(d) && d >= 1 && d <= 3) difficulty = d;
+}
+const diffLabel = ["Easy", "Normal", "Hard"][difficulty - 1];
+
 // --- draw dynamic starfield + ship ---
 function drawStarry(width, height, stars = 80) {
   const ctx = new DrawContext();
@@ -80,8 +88,14 @@ scoreTxt.font = Font.systemFont(20);
 scoreTxt.textColor = new Color("#0ff");
 scoreTxt.centerAlignText();
 
+w.addSpacer(4);
+let diffTxt = w.addText("Difficulty: " + diffLabel);
+diffTxt.font = Font.systemFont(12);
+diffTxt.textColor = new Color("#aaa");
+diffTxt.centerAlignText();
+
 // tap opens the game script
-w.url = "scriptable:///run/SkyDodger";
+w.url = `scriptable:///run/SkyDodger?difficulty=${difficulty}`;
 
 // request faster refresh (about every minute)
 w.refreshAfterDate = new Date(Date.now() + 60 * 1000);

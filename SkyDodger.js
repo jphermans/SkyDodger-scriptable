@@ -16,6 +16,15 @@ function saveBestScore(n) {
 
 let bestFromFile = loadBestScore();
 
+const params = args.queryParameters || {};
+const difficulty = Math.min(Math.max(parseInt(params.difficulty || "2"), 1), 3);
+
+const spawnRates = { 1: 1.0, 2: 1.5, 3: 2.2 };
+const speedMultiplier = { 1: 1.0, 2: 1.3, 3: 1.7 };
+
+const spawnFactor = spawnRates[difficulty];
+const speedFactor = speedMultiplier[difficulty];
+
 let w = new WebView();
 await w.loadHTML(htmlCode(bestFromFile));
 await w.present();
@@ -53,11 +62,15 @@ canvas {display:block;width:100vw;height:100vh;touch-action:none;}
 <canvas id="game"></canvas>
 <div id="menu">
   <div>🚀 Sky Dodger</div>
+  <div id="diffLabel">Difficulty: ${["Easy","Normal","Hard"][difficulty-1]}</div>
   <div id="btn">Play</div>
   <div id="quit">Quit</div>
   <div id="credits">Created by JPHsystems © 2025</div>
 </div>
 <script>
+const difficulty = ${difficulty};
+const spawnFactor = ${spawnFactor};
+const speedFactor = ${speedFactor};
 const cvs=document.getElementById('game'),ctx=cvs.getContext('2d');
 function resize(){cvs.width=window.screen.width;cvs.height=window.screen.height;}
 resize();addEventListener('resize',resize);
@@ -148,12 +161,12 @@ function drawShip(){
 // --- rocks ---
 function updateBlocks(){
   for(let b of blocks){
-    b.y+=2+(score/1000);b.angle+=0.01;
+    b.y+=(2+(score/1000))*speedFactor;b.angle+=0.01;
     drawRock(b);
     if(!hitCooldown && collision(b)){hit();break;}
   }
   blocks=blocks.filter(b=>b.y<cvs.height);
-  const chance=0.02+Math.min(score/50000,0.08);
+  const chance=(0.02+Math.min(score/50000,0.08))*spawnFactor;
   if(Math.random()<chance)blocks.push(makeRock(20+Math.random()*15));
 }
 function makeRock(s){
