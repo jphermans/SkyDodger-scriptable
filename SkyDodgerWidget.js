@@ -91,7 +91,7 @@ scoreTxt.centerAlignText();
 w.addSpacer(4);
 let diffTxt = w.addText("Difficulty: " + diffLabel);
 diffTxt.font = Font.systemFont(12);
-diffTxt.textColor = new Color("#aaa");
+diffTxt.textColor = new Color("#0ff");
 diffTxt.centerAlignText();
 
 // tap opens the game script
