@@ -97,7 +97,15 @@ function resetGame(){
   player={x:cvs.width/2,y:cvs.height*0.8,size:15};
   blocks=[];score=0;lives=3;retries=0;hitCooldown=false;
   state="play";
+  targetX = player.x;
+  targetY = player.y;
 }
+
+let targetX = 0;
+let targetY = 0;
+
+const speedMap = {1: 0.06, 2: 0.1, 3: 0.14};
+const moveSpeed = speedMap[difficulty];
 
 // --- loop ---
 function loop(){
@@ -125,7 +133,16 @@ function loop(){
   }
 
   if(state==="play"||state==="paused")drawShip();
-  if(state==="play"){updateBlocks();score+=scoreMultiplier[difficulty];if(score>best){best=score;window.best=best;}drawHUD();}
+  if(state==="play"){
+    // interpolate player position toward target
+    player.x += (targetX - player.x) * moveSpeed;
+    player.y += (targetY - player.y) * moveSpeed;
+
+    updateBlocks();
+    score+=scoreMultiplier[difficulty];
+    if(score>best){best=score;window.best=best;}
+    drawHUD();
+  }
   else if(state==="paused"){drawHUD();}
   else if(state==="gameover"){drawGameOver();}
 }
@@ -246,10 +263,10 @@ function gameOver(){
 
 // --- controls ---
 cvs.addEventListener('pointermove',e=>{
-  if(state==="play"){player.x=e.clientX;player.y=e.clientY-OFFSET_Y;}
+  if(state==="play"){targetX=e.clientX;targetY=e.clientY-OFFSET_Y;}
 });
 cvs.addEventListener('touchmove',e=>{
-  if(state==="play"){let t=e.touches[0];player.x=t.clientX;player.y=t.clientY-OFFSET_Y;}
+  if(state==="play"){let t=e.touches[0];targetX=t.clientX;targetY=t.clientY-OFFSET_Y;}
   e.preventDefault();
 },{passive:false});
 
