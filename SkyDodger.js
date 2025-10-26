@@ -21,6 +21,7 @@ const difficulty = Math.min(Math.max(parseInt(params.difficulty || "2"), 1), 3);
 
 const spawnRates = { 1: 1.0, 2: 1.5, 3: 2.2 };
 const speedMultiplier = { 1: 1.0, 2: 1.3, 3: 1.7 };
+const scoreMultiplier = { 1: 1/25, 2: 1/10, 3: 1.0 };
 
 const spawnFactor = spawnRates[difficulty];
 const speedFactor = speedMultiplier[difficulty];
@@ -71,6 +72,7 @@ canvas {display:block;width:100vw;height:100vh;touch-action:none;}
 const difficulty = ${difficulty};
 const spawnFactor = ${spawnFactor};
 const speedFactor = ${speedFactor};
+const scoreMultiplier = { 1: 1/25, 2: 1/10, 3: 1.0 };
 const cvs=document.getElementById('game'),ctx=cvs.getContext('2d');
 function resize(){cvs.width=window.screen.width;cvs.height=window.screen.height;}
 resize();addEventListener('resize',resize);
@@ -123,7 +125,7 @@ function loop(){
   }
 
   if(state==="play"||state==="paused")drawShip();
-  if(state==="play"){updateBlocks();score++;if(score>best){best=score;window.best=best;}drawHUD();}
+  if(state==="play"){updateBlocks();score+=scoreMultiplier[difficulty];if(score>best){best=score;window.best=best;}drawHUD();}
   else if(state==="paused"){drawHUD();}
   else if(state==="gameover"){drawGameOver();}
 }
@@ -170,6 +172,15 @@ function updateBlocks(){
   if(Math.random()<chance)blocks.push(makeRock(20+Math.random()*15));
 }
 function makeRock(s){
+// --- Difficulty-based size scaling ---
+    if (difficulty === 1) {
+    // Easy: default
+    } else if (difficulty === 2) {
+    s *= 1.2; // normal slightly bigger
+    } else if (difficulty === 3) {
+    // Hard mode: much bigger, chaotic variation
+    s *= 2.0 + Math.random() * 1.0; // 2x–3x bigger
+    }
   const n=5+Math.floor(Math.random()*3),pts=[];
   for(let i=0;i<n;i++){
     const a=(i/n)*Math.PI*2,r=s*0.6+Math.random()*s*0.4;
@@ -188,15 +199,17 @@ function drawRock(b){
 // --- HUD ---
 function drawHUD(){
   ctx.fillStyle="#0ff";ctx.font="18px -apple-system";
-  ctx.textAlign="left";ctx.fillText("Score: "+score,10,20);
+  ctx.textAlign="left";ctx.fillText("Score: " + Math.floor(score), 10, 20);
   ctx.textAlign="center";ctx.fillText("❤️".repeat(lives),cvs.width/2,20);
   ctx.textAlign="right";ctx.fillText("Best: "+best,cvs.width-10,20);
+  ctx.textAlign="center";
+  ctx.fillText("Diff: "+(difficulty===1?"Easy":difficulty===2?"Normal":"Hard")+" x"+scoreMultiplier[difficulty].toFixed(1), cvs.width/2, 40);
 }
 function drawGameOver(){
   ctx.fillStyle="red";ctx.font="36px -apple-system";ctx.textAlign="center";
   ctx.fillText("☠️ GAME OVER ☠️",cvs.width/2,cvs.height/2);
   ctx.fillStyle="#0ff";ctx.font="20px -apple-system";
-  ctx.fillText("Score: "+score+" | Best: "+best,cvs.width/2,cvs.height/2+30);
+  ctx.fillText("Score: " + Math.round(score) + " | Best: " + Math.round(best), cvs.width/2, cvs.height/2 + 30);
   window.best=best;
 }
 
